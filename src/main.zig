@@ -11,21 +11,6 @@ const Config = struct {
     platform: []const u8,
 };
 
-const SubCommands = enum {
-    help,
-    math,
-};
-
-const main_parsers = .{
-    .command = clap.parsers.enumeration(SubCommands),
-};
-
-const main_params = clap.parseParamsComptime(
-    \\-h, --help        显示帮助信息
-    \\build             执行构建命令
-    \\
-);
-
 fn readConfig(allocator: std.mem.Allocator) !Config {
     // 读取配置文件
     const file = try fs.cwd().openFile("config.toml", .{});
@@ -90,12 +75,26 @@ fn execBuild(config: Config) !void {
     _ = try child.spawnAndWait();
 }
 
+const SubCommands = enum {
+    help,
+    build,
+};
+
+const main_parsers = .{
+    .command = clap.parsers.enumeration(SubCommands),
+};
+
+const main_params = clap.parseParamsComptime(
+    \\-h, --help        print help information
+    \\<command>
+    \\
+);
+
 pub fn main() !void {
-    // 初始化通用分配器
     const allocator = std.heap.page_allocator;
 
     var diag = clap.Diagnostic{};
-    var parser = clap.parse(clap.Help, &main_params, clap.parsers.default, .{
+    var parser = clap.parse(clap.Help, &main_params, main_parsers, .{
         .diagnostic = &diag,
         .allocator = allocator,
     }) catch |err| {
@@ -107,10 +106,16 @@ pub fn main() !void {
     if (parser.args.help != 0)
         return clap.help(std.io.getStdErr().writer(), clap.Help, &main_params, .{});
 
-    if (parser.args.build) {
-        // 读取配置
-        const config = try readConfig(allocator);
-        // 执行构建
-        try execBuild(config);
+    if (parser.positionals.len == 0) {
+        return clap.help(std.io.getStdErr().writer(), clap.Help, &main_params, .{});
+    }
+
+    const command = parser.positionals[0];
+    switch (command) {
+        .help => return clap.help(std.io.getStdErr().writer(), clap.Help, &main_params, .{}),
+        .build => {
+            const config = try readConfig(allocator);
+            try execBuild(config);
+        },
     }
 }

@@ -57,21 +57,22 @@ fn readConfig(allocator: std.mem.Allocator) !Config {
 fn execBuild(config: Config) !void {
     const allocator = std.heap.page_allocator;
 
-    // 构建完整的 repo 路径
     const full_repo_path = try fs.path.join(allocator, &[_][]const u8{ config.workspace, config.repo });
     defer allocator.free(full_repo_path);
 
-    // 创建命令
-    var child = process.Child.init(&[_][]const u8{
+    const command = [_][]const u8{
         "python",
         "ark.py",
         try std.fmt.allocPrint(allocator, "{s}.{s}", .{ config.platform, config.mode }),
-    }, allocator);
+    };
 
-    // 设置工作目录为完整的 repo 路径
+    std.debug.print("{s}\n", .{std.mem.join(allocator, " ", &command) catch "Failed to join command"});
+
+    var child = process.Child.init(&command, allocator);
+
     child.cwd = full_repo_path;
+    std.debug.print("{s}\n", .{full_repo_path});
 
-    // 执行命令
     _ = try child.spawnAndWait();
 }
 

@@ -72,47 +72,61 @@ fn execBuild(config: Config) !void {
     _ = try child.spawnAndWait();
 }
 
-const SubCommands = enum {
-    help,
-    build,
-};
-
-const main_parsers = .{
-    .command = clap.parsers.enumeration(SubCommands),
-};
-
-const main_params = clap.parseParamsComptime(
-    \\-h, --help        print help information
-    \\<command>
-    \\
-);
-
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
+    // const config = try readConfig(allocator);
+
+    // const SubCommands = enum {
+    //     help,
+    //     build,
+    //     config,
+    // };
+
+    const parsers = clap.parsers.default;
+
+    const params = comptime clap.parseParamsComptime(
+        \\-h, --help             Display this help and exit.
+        \\-n, --number <usize>   An option parameter, which takes a value.
+        \\-s, --string <str>...  An option parameter which can be specified multiple times.
+        \\<str>...
+        \\
+    );
 
     var diag = clap.Diagnostic{};
-    var parser = clap.parse(clap.Help, &main_params, main_parsers, .{
+    var res = clap.parse(clap.Help, &params, parsers, .{
         .diagnostic = &diag,
         .allocator = allocator,
     }) catch |err| {
         diag.report(std.io.getStdErr().writer(), err) catch {};
         return err;
     };
-    defer parser.deinit();
+    defer res.deinit();
 
-    if (parser.args.help != 0)
-        return clap.help(std.io.getStdErr().writer(), clap.Help, &main_params, .{});
-
-    if (parser.positionals.len == 0) {
-        return clap.help(std.io.getStdErr().writer(), clap.Help, &main_params, .{});
+    if (res.args.help != 0) {
+        return clap.help(std.io.getStdErr().writer(), clap.Help, &params, .{});
     }
 
-    const command = parser.positionals[0];
-    switch (command) {
-        .help => return clap.help(std.io.getStdErr().writer(), clap.Help, &main_params, .{}),
-        .build => {
-            const config = try readConfig(allocator);
-            try execBuild(config);
-        },
+    if (res.positionals.len == 0) {
+        return clap.help(std.io.getStdErr().writer(), clap.Help, &params, .{});
     }
+
+    for (res.positionals) |pos| {
+        std.debug.print("{s}\n", .{pos});
+    }
+
+    // const command = res.positionals[0];
+
+    // switch (command) {
+    //     .help => return clap.help(std.io.getStdErr().writer(), clap.Help, &main_params, .{}),
+    //     .build => try execBuild(config),
+    //     .config => {
+    //         if (res.positionals.len < 3) {
+    //             std.debug.print("Usage: ark config <key> <value>\n", .{});
+    //             return;
+    //         }
+    //         for (res.positionals) |pos| {
+    //             std.debug.print("{s}\n", .{pos});
+    //         }
+    //     },
+    // }
 }

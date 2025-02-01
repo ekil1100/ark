@@ -65,14 +65,10 @@ fn execBuild(config: Config) !void {
         "ark.py",
         try std.fmt.allocPrint(allocator, "{s}.{s}", .{ config.platform, config.mode }),
     };
-
-    std.debug.print("{s}\n", .{std.mem.join(allocator, " ", &command) catch "Failed to join command"});
-
     var child = process.Child.init(&command, allocator);
-
     child.cwd = full_repo_path;
     std.debug.print("{s}\n", .{full_repo_path});
-
+    std.debug.print("{s}\n", .{std.mem.join(allocator, " ", &command) catch "Failed to join command"});
     _ = try child.spawnAndWait();
 }
 
